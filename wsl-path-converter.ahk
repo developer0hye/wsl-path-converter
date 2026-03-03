@@ -7,8 +7,10 @@ Persistent
 ;  Ctrl+Shift+V : Convert and paste clipboard path (WSL <-> Windows)
 ; ============================================================
 
+global AppVersion := "0.3.0"
+
 TraySetIcon("shell32.dll", 44)
-A_IconTip := "WSL Path Converter (Ctrl+Shift+V)"
+A_IconTip := "WSL Path Converter v" AppVersion
 
 ; --- Detect default WSL distro on startup ---
 global DefaultDistro := DetectDefaultDistro()
@@ -19,8 +21,8 @@ global StartupLink := A_Startup "\WSL Path Converter.lnk"
 ; --- Tray menu ---
 tray := A_TrayMenu
 tray.Delete()
-tray.Add("WSL Path Converter", (*) => "")
-tray.Disable("WSL Path Converter")
+tray.Add("WSL Path Converter v" AppVersion, (*) => "")
+tray.Disable("WSL Path Converter v" AppVersion)
 tray.Add()
 tray.Add("Distro: " DefaultDistro, (*) => "")
 tray.Disable("Distro: " DefaultDistro)
