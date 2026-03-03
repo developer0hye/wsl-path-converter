@@ -2,7 +2,7 @@
 
 `C:\Users\me\project` → `/mnt/c/Users/me/project`
 
-Copy a path. **Ctrl+Shift+V**. Done.
+**Ctrl+C** a path. **Ctrl+Shift+V** to paste. Done.
 
 ## Install
 
@@ -26,4 +26,4 @@ Not a path? It just pastes normally.
 
 Lives quietly in your system tray. Auto-detects your WSL distro.
 
-Want it on every boot? Right-click the tray icon → **Start with Windows**.
+Starts with Windows automatically. Don't want that? Right-click the tray icon → uncheck **Start with Windows**.
