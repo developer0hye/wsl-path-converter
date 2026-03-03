@@ -1,0 +1,50 @@
+name: Build & Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup AutoHotkey v2 Compiler
+        shell: pwsh
+        run: |
+          # AHK v2 런타임 다운로드
+          $ahk = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/AutoHotkey/releases/latest"
+          $zip = ($ahk.assets | Where-Object { $_.name -like '*.zip' })[0]
+          Invoke-WebRequest $zip.browser_download_url -OutFile ahk.zip
+          Expand-Archive ahk.zip -DestinationPath .\ahk
+
+          # Ahk2Exe 컴파일러 다운로드
+          $comp = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/Ahk2Exe/releases/latest"
+          $czip = ($comp.assets | Where-Object { $_.name -like '*.zip' })[0]
+          Invoke-WebRequest $czip.browser_download_url -OutFile compiler.zip
+          Expand-Archive compiler.zip -DestinationPath .\ahk\Compiler
+
+      - name: Compile EXE
+        shell: pwsh
+        run: |
+          $base = Get-ChildItem .\ahk -Filter "AutoHotkey64.exe" -Recurse | Select-Object -First 1
+          if (!$base) { throw "AutoHotkey64.exe not found" }
+          .\ahk\Compiler\Ahk2Exe.exe /in wsl-path-converter.ahk /out wsl-path-converter.exe /base $base.FullName
+          # Ahk2Exe는 비동기로 동작할 수 있으므로 대기
+          $timeout = 30
+          while ($timeout -gt 0 -and !(Test-Path wsl-path-converter.exe)) {
+            Start-Sleep -Seconds 1
+            $timeout--
+          }
+          if (!(Test-Path wsl-path-converter.exe)) { throw "Compilation failed" }
+          Get-Item wsl-path-converter.exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: wsl-path-converter.exe
+          generate_release_notes: true
