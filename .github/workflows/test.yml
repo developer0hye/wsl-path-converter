@@ -1,0 +1,30 @@
+name: Test
+
+on:
+  push:
+    branches: ['master']
+  pull_request:
+    branches: ['master']
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup AutoHotkey v2
+        shell: pwsh
+        run: |
+          $ahk = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/AutoHotkey/releases/latest"
+          $zip = ($ahk.assets | Where-Object { $_.name -like '*.zip' })[0]
+          Invoke-WebRequest $zip.browser_download_url -OutFile ahk.zip
+          Expand-Archive ahk.zip -DestinationPath .\ahk
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          $ahkExe = Get-ChildItem .\ahk -Filter "AutoHotkey64.exe" -Recurse | Select-Object -First 1
+          if (!$ahkExe) { throw "AutoHotkey64.exe not found" }
+          $proc = Start-Process -FilePath $ahkExe.FullName -ArgumentList "/script test.ahk" -NoNewWindow -PassThru -Wait -RedirectStandardOutput test-output.txt
+          Get-Content test-output.txt
+          if ($proc.ExitCode -ne 0) { throw "Tests failed with exit code $($proc.ExitCode)" }
