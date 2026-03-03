@@ -34,8 +34,7 @@ jobs:
         run: |
           $base = Get-ChildItem .\ahk -Filter "AutoHotkey64.exe" -Recurse | Select-Object -First 1
           if (!$base) { throw "AutoHotkey64.exe not found" }
-          .\ahk\Compiler\Ahk2Exe.exe /in wsl-path-converter.ahk /out wsl-path-converter.exe /base $base.FullName /icon app-icon.ico
-          # Ahk2Exe는 비동기로 동작할 수 있으므로 대기
+          .\ahk\Compiler\Ahk2Exe.exe /in wsl-path-converter.ahk /out wsl-path-converter.exe /base $base.FullName           # Ahk2Exe는 비동기로 동작할 수 있으므로 대기
           $timeout = 30
           while ($timeout -gt 0 -and !(Test-Path wsl-path-converter.exe)) {
             Start-Sleep -Seconds 1

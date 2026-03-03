@@ -2,6 +2,8 @@
 #SingleInstance Force
 Persistent
 
+;@Ahk2Exe-SetMainIcon app-icon.ico
+
 ; ============================================================
 ;  WSL Path Converter
 ;  Ctrl+Shift+V : Convert and paste clipboard path (WSL <-> Windows)
