@@ -7,7 +7,7 @@ Persistent
 ;  Ctrl+Shift+V : Convert and paste clipboard path (WSL <-> Windows)
 ; ============================================================
 
-global AppVersion := "0.3.0"
+global AppVersion := "0.4.0"
 
 iconPath := A_ScriptDir "\icon.ico"
 if (FileExist(iconPath))
