@@ -9,7 +9,11 @@ Persistent
 
 global AppVersion := "0.3.0"
 
-TraySetIcon("shell32.dll", 44)
+iconPath := A_ScriptDir "\icon.ico"
+if (FileExist(iconPath))
+    TraySetIcon(iconPath)
+else
+    TraySetIcon("shell32.dll", 44)
 A_IconTip := "WSL Path Converter v" AppVersion
 
 ; --- Detect default WSL distro on startup ---
