@@ -15,15 +15,16 @@ jobs:
 
       - name: Setup AutoHotkey v2 Compiler
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # AHK v2 런타임 다운로드
-          $ahk = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/AutoHotkey/releases/latest"
+          $headers = @{ Authorization = "token $env:GH_TOKEN" }
+          $ahk = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/AutoHotkey/releases/latest" -Headers $headers
           $zip = ($ahk.assets | Where-Object { $_.name -like '*.zip' })[0]
           Invoke-WebRequest $zip.browser_download_url -OutFile ahk.zip
           Expand-Archive ahk.zip -DestinationPath .\ahk
 
-          # Ahk2Exe 컴파일러 다운로드
-          $comp = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/Ahk2Exe/releases/latest"
+          $comp = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/Ahk2Exe/releases/latest" -Headers $headers
           $czip = ($comp.assets | Where-Object { $_.name -like '*.zip' })[0]
           Invoke-WebRequest $czip.browser_download_url -OutFile compiler.zip
           Expand-Archive compiler.zip -DestinationPath .\ahk\Compiler

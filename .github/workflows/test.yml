@@ -14,8 +14,11 @@ jobs:
 
       - name: Setup AutoHotkey v2
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $ahk = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/AutoHotkey/releases/latest"
+          $headers = @{ Authorization = "token $env:GH_TOKEN" }
+          $ahk = Invoke-RestMethod "https://api.github.com/repos/AutoHotkey/AutoHotkey/releases/latest" -Headers $headers
           $zip = ($ahk.assets | Where-Object { $_.name -like '*.zip' })[0]
           Invoke-WebRequest $zip.browser_download_url -OutFile ahk.zip
           Expand-Archive ahk.zip -DestinationPath .\ahk
