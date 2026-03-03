@@ -13,6 +13,9 @@ A_IconTip := "WSL Path Converter (Ctrl+Shift+V)"
 ; --- 시작 시 기본 WSL 배포판 자동 감지 ---
 global DefaultDistro := DetectDefaultDistro()
 
+; --- 시작프로그램 등록 경로 ---
+global StartupLink := A_Startup "\WSL Path Converter.lnk"
+
 ; --- Tray 메뉴 ---
 tray := A_TrayMenu
 tray.Delete()
@@ -22,7 +25,37 @@ tray.Add()
 tray.Add("배포판: " DefaultDistro, (*) => "")
 tray.Disable("배포판: " DefaultDistro)
 tray.Add()
+tray.Add("Start with Windows", ToggleStartup)
+if (FileExist(StartupLink))
+    tray.Check("Start with Windows")
+tray.Add()
 tray.Add("종료", (*) => ExitApp())
+
+; --- 시작 알림 ---
+TrayTip("Ctrl+Shift+V to convert paths`nDistro: " DefaultDistro, "WSL Path Converter", 1)
+SetTimer(() => TrayTip(), -3000)
+
+; ============================================================
+;  시작프로그램 등록/해제
+; ============================================================
+ToggleStartup(*) {
+    if (FileExist(StartupLink)) {
+        FileDelete(StartupLink)
+        A_TrayMenu.Uncheck("Start with Windows")
+        ToolTip("Removed from startup")
+    } else {
+        ; 현재 실행 중인 exe/ahk의 바로가기 생성
+        ComObject("WScript.Shell").CreateShortcut(StartupLink).TargetPath := A_ScriptFullPath
+        shortcut := ComObject("WScript.Shell").CreateShortcut(StartupLink)
+        shortcut.TargetPath := A_ScriptFullPath
+        shortcut.WorkingDirectory := A_ScriptDir
+        shortcut.Description := "WSL Path Converter"
+        shortcut.Save()
+        A_TrayMenu.Check("Start with Windows")
+        ToolTip("Added to startup")
+    }
+    SetTimer(() => ToolTip(), -1500)
+}
 
 ; ============================================================
 ;  Ctrl+Shift+V  →  경로 변환 후 붙여넣기
