@@ -117,9 +117,9 @@ copyAsPathExpected := dq "/mnt/c/Users/foo" dq "`r`n" dq "/mnt/d/projects/app" d
 AssertClipboard(copyAsPathInput, copyAsPathExpected, "copy-as-path multiline quoted paths")
 
 ; ============================================================
-;  Ctrl+Shift+C workflow (copy then convert)
+;  Copy-as-path workflow (convert on Ctrl+Shift+V)
 ; ============================================================
-FileAppend("`n[Ctrl+Shift+C workflow]`n", "*")
+FileAppend("`n[Copy-as-path workflow]`n", "*")
 AssertClipboard(dq "C:\Users\foo\Desktop" dq, dq "/mnt/c/Users/foo/Desktop" dq, "explorer copy-as-path style single selection")
 AssertClipboard(dq "\\wsl.localhost\Ubuntu-24.04\home\user\src" dq, dq "/home/user/src" dq, "explorer copy-as-path style UNC selection")
 AssertClipboard("not a path", "not a path", "non-path copy remains unchanged")
