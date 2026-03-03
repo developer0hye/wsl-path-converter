@@ -31,6 +31,8 @@ if (!FileExist(StartupLink))
     RegisterStartup()
 tray.Check("Start with Windows")
 tray.Add()
+tray.Add("Contact", (*) => Run("mailto:developer.0hye@gmail.com"))
+tray.Add()
 tray.Add("Exit", (*) => ExitApp())
 
 ; --- Startup notification ---
