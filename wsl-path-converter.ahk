@@ -72,10 +72,10 @@ ToggleStartup(*) {
 ; ============================================================
 ;  Ctrl+Shift+V  ->  Convert and paste path
 ; ============================================================
-^+v:: {
-    ; Non-text clipboard (image/file) -> normal paste
+$^+v:: {
+    ; Non-text clipboard (image/file) -> passthrough original Ctrl+Shift+V
     if (A_Clipboard = "" && DllCall("IsClipboardFormatAvailable", "UInt", 1) = 0) {
-        Send("^v")
+        Send("^+v")
         return
     }
 
@@ -85,7 +85,7 @@ ToggleStartup(*) {
     if (InStr(rawText, "`n")) {
         result := ConvertMultiLine(rawText)
         if (result = rawText) {
-            Send("^v")
+            Send("^+v")
             return
         }
         PasteConverted(result)
@@ -95,7 +95,7 @@ ToggleStartup(*) {
     clipText := Trim(rawText, " `t`r`n")
 
     if (clipText = "") {
-        Send("^v")
+        Send("^+v")
         return
     }
 
@@ -108,15 +108,15 @@ ToggleStartup(*) {
 
     pathCandidate := Trim(pathCandidate, " `t`r`n")
     if (pathCandidate = "") {
-        Send("^v")
+        Send("^+v")
         return
     }
 
     converted := ConvertPath(pathCandidate)
 
-    ; Not a path -> normal paste
+    ; Not a path -> passthrough original Ctrl+Shift+V
     if (converted = pathCandidate) {
-        Send("^v")
+        Send("^+v")
         return
     }
 
