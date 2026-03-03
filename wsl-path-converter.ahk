@@ -10,7 +10,7 @@ Persistent
 ;  Ctrl+Shift+V : Convert and paste clipboard path (WSL <-> Windows)
 ; ============================================================
 
-global AppVersion := "0.5.0"
+global AppVersion := "0.5.1"
 
 trayIconPath := A_Temp "\wsl-path-converter-tray.ico"
 FileInstall("icon.ico", trayIconPath, 1)
@@ -38,7 +38,8 @@ if (!FileExist(StartupLink))
     RegisterStartup()
 tray.Check("Start with Windows")
 tray.Add()
-tray.Add("Contact", (*) => Run("mailto:developer.0hye@gmail.com"))
+tray.Add("Contact: developer.0hye@gmail.com", (*) => "")
+tray.Disable("Contact: developer.0hye@gmail.com")
 tray.Add()
 tray.Add("Exit", (*) => ExitApp())
 
