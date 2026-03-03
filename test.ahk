@@ -90,7 +90,7 @@ Assert("", "", "empty string")
 FileAppend("`n[Multi-line]`n", "*")
 global TotalTests += 1
 multiInput := "C:\Users\foo`n/mnt/d/projects"
-multiExpected := "/mnt/c/Users/foo`n/mnt/d/projects"
+multiExpected := "/mnt/c/Users/foo`nD:\projects"
 multiActual := ConvertMultiLine(multiInput)
 if (multiActual = multiExpected) {
     global PassedTests += 1
