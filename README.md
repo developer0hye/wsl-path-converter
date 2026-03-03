@@ -6,7 +6,7 @@
 
 ## Install
 
-[Download](https://github.com/developer0hye/wsl-path-converter/releases/latest) → Run → Done.
+[Download](https://github.com/developer0hye/wsl-path-converter/releases/latest/download/wsl-path-converter.exe) → Run → Done.
 
 ## Conversions
 
