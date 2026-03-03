@@ -1,5 +1,7 @@
 # wsl-path-converter
 
+<img src="logo.png" alt="WSL Path Converter Logo" width="480" />
+
 `C:\Users\me\project` -> `/mnt/c/Users/me/project`
 
 Copy with `Ctrl+C`, then paste with `Ctrl+Shift+V`.
