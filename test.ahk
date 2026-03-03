@@ -57,6 +57,8 @@ Assert("/mnt/c/Program Files/app", "C:\Program Files\app", "path with spaces")
 FileAppend("`n[WSL native -> UNC]`n", "*")
 Assert("/home/user", "\\wsl.localhost\Ubuntu-24.04\home\user", "home dir")
 Assert("/home/user/.config", "\\wsl.localhost\Ubuntu-24.04\home\user\.config", "dotfile")
+Assert("/home/user/My Project", "\\wsl.localhost\Ubuntu-24.04\home\user\My Project", "path with spaces")
+Assert("/home/user/file+name", "\\wsl.localhost\Ubuntu-24.04\home\user\file+name", "path with plus sign")
 Assert("/etc/config", "\\wsl.localhost\Ubuntu-24.04\etc\config", "etc path")
 Assert("/usr/local/bin", "\\wsl.localhost\Ubuntu-24.04\usr\local\bin", "usr path")
 Assert("/tmp/test", "\\wsl.localhost\Ubuntu-24.04\tmp\test", "tmp path")
@@ -111,6 +113,34 @@ if (multiPlainResult = multiPlain) {
 } else {
     global FailedTests += 1
     FileAppend("  FAIL: multi-line non-path unchanged`n", "*")
+}
+
+global TotalTests += 1
+multiWhitespace := "  C:\Users\foo  `n`t/mnt/d/projects`t"
+multiWhitespaceExpected := "  /mnt/c/Users/foo  `n`tD:\projects`t"
+multiWhitespaceResult := ConvertMultiLine(multiWhitespace)
+if (multiWhitespaceResult = multiWhitespaceExpected) {
+    global PassedTests += 1
+    FileAppend("  PASS: multi-line whitespace preserved`n", "*")
+} else {
+    global FailedTests += 1
+    FileAppend("  FAIL: multi-line whitespace preserved`n", "*")
+    FileAppend("    expected: " multiWhitespaceExpected "`n", "*")
+    FileAppend("    actual:   " multiWhitespaceResult "`n", "*")
+}
+
+global TotalTests += 1
+multiCrLf := "C:\Users\foo`r`n/mnt/d/projects`r`n"
+multiCrLfExpected := "/mnt/c/Users/foo`r`nD:\projects`r`n"
+multiCrLfResult := ConvertMultiLine(multiCrLf)
+if (multiCrLfResult = multiCrLfExpected) {
+    global PassedTests += 1
+    FileAppend("  PASS: multi-line CRLF preserved`n", "*")
+} else {
+    global FailedTests += 1
+    FileAppend("  FAIL: multi-line CRLF preserved`n", "*")
+    FileAppend("    expected: " multiCrLfExpected "`n", "*")
+    FileAppend("    actual:   " multiCrLfResult "`n", "*")
 }
 
 ; ============================================================

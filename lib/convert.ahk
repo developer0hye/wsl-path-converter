@@ -37,14 +37,13 @@ ConvertPath(path) {
     }
 
     ; 4) WSL native path -> \\wsl.localhost\Distro\path
-    ;    Only convert paths starting with known top-level directories
-    if (RegExMatch(path, "^/([a-zA-Z0-9._-]+(?:/[a-zA-Z0-9._@:~-]*)*)", &m)) {
-        matched := m[0]
-        ; Only convert if entire input matches (no trailing junk)
-        if (matched != path)
+    ;    Convert only known top-level directories to avoid API-like strings (/api/...)
+    if (RegExMatch(path, "^/([^/\r\n]+)(?:/(.*)|$)", &m)) {
+        topLevel := StrLower(m[1])
+        if (!IsKnownWslTopLevel(topLevel))
             return path
-        ; Must start with a known WSL top-level directory
-        if (!RegExMatch(path, "^/(home|etc|usr|var|tmp|opt|root|srv|bin|sbin|lib|lib64|dev|proc|sys|run|mnt|media|boot|snap)\b"))
+        ; Mixed slash styles are treated as non-path text.
+        if (InStr(path, "\"))
             return path
         rest := StrReplace(SubStr(path, 2), "/", "\")
         rest := RTrim(rest, "\")
@@ -62,17 +61,61 @@ ConvertMultiLine(text) {
     result := ""
     anyConverted := false
     for i, line in lines {
-        trimmed := Trim(line, " `t`r")
-        if (trimmed != "") {
-            converted := ConvertPath(trimmed)
-            if (converted != trimmed) {
+        lineOut := line
+
+        ; Keep CRLF when splitting by LF.
+        trailingCR := ""
+        if (RegExMatch(lineOut, "`r$")) {
+            trailingCR := "`r"
+            lineOut := SubStr(lineOut, 1, -1)
+        }
+
+        ; Preserve indentation and trailing spaces/tabs around the path.
+        leadingTrimmed := LTrim(lineOut, " `t")
+        leadingLen := StrLen(lineOut) - StrLen(leadingTrimmed)
+        core := RTrim(leadingTrimmed, " `t")
+        trailingLen := StrLen(leadingTrimmed) - StrLen(core)
+
+        if (core != "") {
+            leading := leadingLen > 0 ? SubStr(lineOut, 1, leadingLen) : ""
+            trailing := trailingLen > 0 ? SubStr(leadingTrimmed, StrLen(core) + 1) : ""
+            converted := ConvertPath(core)
+            if (converted != core) {
                 anyConverted := true
-                line := converted
+                lineOut := leading converted trailing
             }
         }
-        result .= (i > 1 ? "`n" : "") line
+
+        lineOut .= trailingCR
+        result .= (i > 1 ? "`n" : "") lineOut
     }
     if (!anyConverted)
         return text
     return result
+}
+
+IsKnownWslTopLevel(name) {
+    static roots := Map(
+        "home", true,
+        "etc", true,
+        "usr", true,
+        "var", true,
+        "tmp", true,
+        "opt", true,
+        "root", true,
+        "srv", true,
+        "bin", true,
+        "sbin", true,
+        "lib", true,
+        "lib64", true,
+        "dev", true,
+        "proc", true,
+        "sys", true,
+        "run", true,
+        "mnt", true,
+        "media", true,
+        "boot", true,
+        "snap", true
+    )
+    return roots.Has(name)
 }

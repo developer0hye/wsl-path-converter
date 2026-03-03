@@ -1,12 +1,12 @@
 # wsl-path-converter
 
-`C:\Users\me\project` → `/mnt/c/Users/me/project`
+`C:\Users\me\project` -> `/mnt/c/Users/me/project`
 
-**Ctrl+C** a path. **Ctrl+Shift+V** to paste. Done.
+Copy with `Ctrl+C`, then paste with `Ctrl+Shift+V`.
 
 ## Install
 
-[Download](https://github.com/developer0hye/wsl-path-converter/releases/latest/download/wsl-path-converter.exe) → Run → Done.
+[Download](https://github.com/developer0hye/wsl-path-converter/releases/latest/download/wsl-path-converter.exe) -> Run -> Done.
 
 ## Conversions
 
@@ -19,11 +19,11 @@
 
 ## How it works
 
-1. **Ctrl+C** — Copy a path as usual
-2. **Ctrl+Shift+V** — Paste the converted path
+1. Press `Ctrl+C` to copy a path as usual.
+2. Press `Ctrl+Shift+V` to paste the converted path.
 
-Not a path? It just pastes normally.
+If the clipboard text is not a supported path, it pastes normally.
 
-Lives quietly in your system tray. Auto-detects your WSL distro.
+The app runs in the system tray and auto-detects your WSL distro.
 
-Starts with Windows automatically. Don't want that? Right-click the tray icon → uncheck **Start with Windows**.
+It starts with Windows automatically. To disable, right-click the tray icon and uncheck **Start with Windows**.
