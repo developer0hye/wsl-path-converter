@@ -27,6 +27,22 @@ Assert(input, expected, label := "") {
     }
 }
 
+AssertClipboard(input, expected, label := "") {
+    global TotalTests, PassedTests, FailedTests
+    TotalTests++
+    actual := ConvertClipboardText(input)
+    if (actual = expected) {
+        PassedTests++
+        FileAppend("  PASS: " label "`n", "*")
+    } else {
+        FailedTests++
+        FileAppend("  FAIL: " label "`n", "*")
+        FileAppend("    input:    " input "`n", "*")
+        FileAppend("    expected: " expected "`n", "*")
+        FileAppend("    actual:   " actual "`n", "*")
+    }
+}
+
 ; ============================================================
 ;  Windows drive path -> WSL
 ; ============================================================
@@ -85,6 +101,28 @@ Assert("SELECT * FROM table", "SELECT * FROM table", "SQL")
 Assert("foo/bar/baz", "foo/bar/baz", "relative path")
 Assert("123", "123", "number")
 Assert("", "", "empty string")
+
+; ============================================================
+;  Clipboard conversion helpers (single-line, quotes, copy-as-path)
+; ============================================================
+FileAppend("`n[Clipboard helper]`n", "*")
+dq := Chr(34)
+AssertClipboard("  C:\Users\foo  ", "  /mnt/c/Users/foo  ", "single-line whitespace preserved")
+AssertClipboard(dq "C:\Program Files\app" dq, dq "/mnt/c/Program Files/app" dq, "double-quoted Windows path")
+AssertClipboard("'C:\Users\foo'", "'/mnt/c/Users/foo'", "single-quoted Windows path")
+AssertClipboard(dq "/mnt/c/Program Files/app" dq, dq "C:\Program Files\app" dq, "double-quoted /mnt path")
+AssertClipboard("'\\wsl.localhost\Ubuntu-24.04\home\user'", "'/home/user'", "single-quoted UNC path")
+copyAsPathInput := dq "C:\Users\foo" dq "`r`n" dq "D:\projects\app" dq
+copyAsPathExpected := dq "/mnt/c/Users/foo" dq "`r`n" dq "/mnt/d/projects/app" dq
+AssertClipboard(copyAsPathInput, copyAsPathExpected, "copy-as-path multiline quoted paths")
+
+; ============================================================
+;  Ctrl+Shift+C workflow (copy then convert)
+; ============================================================
+FileAppend("`n[Ctrl+Shift+C workflow]`n", "*")
+AssertClipboard(dq "C:\Users\foo\Desktop" dq, dq "/mnt/c/Users/foo/Desktop" dq, "explorer copy-as-path style single selection")
+AssertClipboard(dq "\\wsl.localhost\Ubuntu-24.04\home\user\src" dq, dq "/home/user/src" dq, "explorer copy-as-path style UNC selection")
+AssertClipboard("not a path", "not a path", "non-path copy remains unchanged")
 
 ; ============================================================
 ;  Multi-line conversion

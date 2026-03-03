@@ -6,10 +6,11 @@ Persistent
 
 ; ============================================================
 ;  WSL Path Converter
+;  Ctrl+Shift+C : Copy and convert path in clipboard (WSL <-> Windows)
 ;  Ctrl+Shift+V : Convert and paste clipboard path (WSL <-> Windows)
 ; ============================================================
 
-global AppVersion := "0.4.0"
+global AppVersion := "0.5.0"
 
 trayIconPath := A_Temp "\wsl-path-converter-tray.ico"
 FileInstall("icon.ico", trayIconPath, 1)
@@ -42,7 +43,7 @@ tray.Add()
 tray.Add("Exit", (*) => ExitApp())
 
 ; --- Startup notification ---
-TrayTip("Ctrl+Shift+V to convert paths`nDistro: " DefaultDistro, "WSL Path Converter", 1)
+TrayTip("Ctrl+Shift+C copy/convert`nCtrl+Shift+V convert/paste`nDistro: " DefaultDistro, "WSL Path Converter", 1)
 SetTimer(() => TrayTip(), -3000)
 
 ; ============================================================
@@ -70,6 +71,34 @@ ToggleStartup(*) {
 }
 
 ; ============================================================
+;  Ctrl+Shift+C  ->  Copy then convert path in clipboard
+; ============================================================
+$^+c:: {
+    beforeSeq := DllCall("GetClipboardSequenceNumber", "UInt")
+    Send("^+c")
+
+    ; If clipboard didn't change, preserve original Ctrl+Shift+C behavior only.
+    if (!WaitClipboardChange(beforeSeq, 800))
+        return
+
+    ; Non-text clipboard (image/file) -> leave clipboard untouched.
+    if (A_Clipboard = "" && DllCall("IsClipboardFormatAvailable", "UInt", 1) = 0)
+        return
+
+    rawText := A_Clipboard
+    converted := ConvertClipboardText(rawText)
+    if (converted = rawText)
+        return
+
+    A_Clipboard := converted
+    if (!ClipWait(2))
+        return
+
+    ToolTip(converted)
+    SetTimer(() => ToolTip(), -2000)
+}
+
+; ============================================================
 ;  Ctrl+Shift+V  ->  Convert and paste path
 ; ============================================================
 $^+v:: {
@@ -80,47 +109,22 @@ $^+v:: {
     }
 
     rawText := A_Clipboard
-
-    ; Multi-line: convert each line individually
-    if (InStr(rawText, "`n")) {
-        result := ConvertMultiLine(rawText)
-        if (result = rawText) {
-            Send("^+v")
-            return
-        }
-        PasteConverted(result)
-        return
-    }
-
-    clipText := Trim(rawText, " `t`r`n")
-
-    if (clipText = "") {
+    converted := ConvertClipboardText(rawText)
+    if (converted = rawText) {
         Send("^+v")
         return
     }
-
-    ; Strip surrounding quotes (use separate var to preserve original)
-    pathCandidate := clipText
-    if (StrLen(pathCandidate) >= 2 && SubStr(pathCandidate, 1, 1) = '"' && SubStr(pathCandidate, -1) = '"')
-        pathCandidate := SubStr(pathCandidate, 2, -1)
-    else if (StrLen(pathCandidate) >= 2 && SubStr(pathCandidate, 1, 1) = "'" && SubStr(pathCandidate, -1) = "'")
-        pathCandidate := SubStr(pathCandidate, 2, -1)
-
-    pathCandidate := Trim(pathCandidate, " `t`r`n")
-    if (pathCandidate = "") {
-        Send("^+v")
-        return
-    }
-
-    converted := ConvertPath(pathCandidate)
-
-    ; Not a path -> passthrough original Ctrl+Shift+V
-    if (converted = pathCandidate) {
-        Send("^+v")
-        return
-    }
-
     PasteConverted(converted)
+}
+
+WaitClipboardChange(previousSeq, timeoutMs := 800) {
+    deadline := A_TickCount + timeoutMs
+    while (A_TickCount < deadline) {
+        if (DllCall("GetClipboardSequenceNumber", "UInt") != previousSeq)
+            return true
+        Sleep(20)
+    }
+    return false
 }
 
 ; ============================================================

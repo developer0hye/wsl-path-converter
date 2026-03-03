@@ -56,6 +56,48 @@ ConvertPath(path) {
     return path
 }
 
+ConvertPathPreservingQuotes(text) {
+    candidate := text
+    quote := ""
+
+    if (StrLen(candidate) >= 2) {
+        first := SubStr(candidate, 1, 1)
+        last := SubStr(candidate, -1)
+        if ((first = '"' && last = '"') || (first = "'" && last = "'")) {
+            quote := first
+            candidate := SubStr(candidate, 2, -1)
+        }
+    }
+
+    converted := ConvertPath(candidate)
+    if (converted = candidate)
+        return text
+    if (quote != "")
+        return quote converted quote
+    return converted
+}
+
+ConvertClipboardText(text) {
+    if (InStr(text, "`n"))
+        return ConvertMultiLine(text)
+
+    leadingTrimmed := LTrim(text, " `t`r`n")
+    leadingLen := StrLen(text) - StrLen(leadingTrimmed)
+    core := RTrim(leadingTrimmed, " `t`r`n")
+    trailingLen := StrLen(leadingTrimmed) - StrLen(core)
+
+    if (core = "")
+        return text
+
+    leading := leadingLen > 0 ? SubStr(text, 1, leadingLen) : ""
+    trailing := trailingLen > 0 ? SubStr(leadingTrimmed, StrLen(core) + 1) : ""
+    converted := ConvertPathPreservingQuotes(core)
+
+    if (converted = core)
+        return text
+    return leading converted trailing
+}
+
 ConvertMultiLine(text) {
     lines := StrSplit(text, "`n")
     result := ""
@@ -79,7 +121,7 @@ ConvertMultiLine(text) {
         if (core != "") {
             leading := leadingLen > 0 ? SubStr(lineOut, 1, leadingLen) : ""
             trailing := trailingLen > 0 ? SubStr(leadingTrimmed, StrLen(core) + 1) : ""
-            converted := ConvertPath(core)
+            converted := ConvertPathPreservingQuotes(core)
             if (converted != core) {
                 anyConverted := true
                 lineOut := leading converted trailing
