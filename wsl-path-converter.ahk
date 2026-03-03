@@ -11,11 +11,9 @@ Persistent
 
 global AppVersion := "0.4.0"
 
-iconPath := A_ScriptDir "\icon.ico"
-if (FileExist(iconPath))
-    TraySetIcon(iconPath)
-else
-    TraySetIcon("shell32.dll", 44)
+trayIconPath := A_Temp "\wsl-path-converter-tray.ico"
+FileInstall("icon.ico", trayIconPath, 1)
+TraySetIcon(trayIconPath)
 A_IconTip := "WSL Path Converter v" AppVersion
 
 ; --- Detect default WSL distro on startup ---
@@ -154,11 +152,8 @@ PasteConverted(text) {
 DetectDefaultDistro() {
     ; Method 1: wsl --status (Windows 11+)
     try {
-        tempFile := A_Temp "\wsl_status_detect.txt"
-        RunWait(A_ComSpec ' /c wsl.exe --status > "' tempFile '" 2>nul', , "Hide")
-        content := FileRead(tempFile, "UTF-16")
-        FileDelete(tempFile)
-        if (RegExMatch(content, "im)(?:Default Distribution|기본 배포[^:]*)[:\s]+(.+)", &m)) {
+        content := RunWslCapture("--status", "wsl_status_detect.txt")
+        if (RegExMatch(content, "im)^\s*Default Distribution\s*:\s*(.+)$", &m)) {
             distro := Trim(m[1], " `r`n`0")
             if (distro != "")
                 return distro
@@ -168,24 +163,25 @@ DetectDefaultDistro() {
 
     ; Method 2: wsl -l -v (* marks default)
     try {
-        tempFile := A_Temp "\wsl_list_detect.txt"
-        RunWait(A_ComSpec ' /c wsl.exe -l -v > "' tempFile '" 2>nul', , "Hide")
-        content := FileRead(tempFile, "UTF-16")
-        FileDelete(tempFile)
-        if (RegExMatch(content, "m)^\s*\*\s+(\S+)", &m)) {
-            distro := Trim(m[1], " `r`n`0")
-            if (distro != "")
-                return distro
-        }
+        content := RunWslCapture("-l -v", "wsl_list_detect.txt")
+        distro := ParseDefaultDistroFromList(content)
+        if (distro != "")
+            return distro
     } catch {
     }
 
-    ; Method 3: wsl -l -q first line (legacy fallback)
+    ; Method 3: wsl -l (* marks default on older output format)
     try {
-        tempFile := A_Temp "\wsl_distro_detect.txt"
-        RunWait(A_ComSpec ' /c wsl.exe -l -q > "' tempFile '" 2>nul', , "Hide")
-        content := FileRead(tempFile, "UTF-16")
-        FileDelete(tempFile)
+        content := RunWslCapture("-l", "wsl_plain_list_detect.txt")
+        distro := ParseDefaultDistroFromList(content)
+        if (distro != "")
+            return distro
+    } catch {
+    }
+
+    ; Method 4: wsl -l -q first non-empty line (legacy fallback)
+    try {
+        content := RunWslCapture("-l -q", "wsl_distro_detect.txt")
         for line in StrSplit(content, "`n") {
             line := Trim(line, " `r`n`0")
             if (line != "")
@@ -196,3 +192,42 @@ DetectDefaultDistro() {
 
     return "Ubuntu"
 }
+
+RunWslCapture(args, tempName) {
+    tempFile := A_Temp "\" tempName
+    try FileDelete(tempFile)
+    RunWait(A_ComSpec ' /c wsl.exe ' args ' > "' tempFile '" 2>nul', , "Hide")
+    if (!FileExist(tempFile))
+        return ""
+    content := FileRead(tempFile, "UTF-16")
+    try FileDelete(tempFile)
+    return content
+}
+
+ParseDefaultDistroFromList(content) {
+    for rawLine in StrSplit(content, "`n") {
+        line := Trim(rawLine, " `t`r`n`0")
+        if (line = "")
+            continue
+        if (SubStr(line, 1, 1) != "*")
+            continue
+
+        candidateLine := Trim(SubStr(line, 2), " `t")
+        if (candidateLine = "")
+            continue
+
+        ; Common format: "<name>  <state>  <version>"
+        if (RegExMatch(candidateLine, "^(.+?)\s{2,}.*$", &m))
+            candidate := Trim(m[1], " `t")
+        ; Alternate format: "<name> (Default)" (localized text inside parentheses)
+        else if (RegExMatch(candidateLine, "^(.+?)\s+\([^)]*\)$", &m))
+            candidate := Trim(m[1], " `t")
+        else
+            candidate := candidateLine
+
+        if (candidate != "")
+            return candidate
+    }
+    return ""
+}
+
