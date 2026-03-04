@@ -13,6 +13,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Resolve release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -notmatch "^v(.+)$") { throw "Tag must start with 'v': $tag" }
+
+          $version = $Matches[1]
+          $isPreview = $version.Contains("-")
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "is_preview=$($isPreview.ToString().ToLower())" >> $env:GITHUB_OUTPUT
+
+      - name: Sync app version
+        shell: pwsh
+        run: |
+          $scriptPath = "wsl-path-converter.ahk"
+          $content = Get-Content -Path $scriptPath -Raw
+          $replacement = 'global AppVersion := "${{ steps.meta.outputs.version }}"'
+          $updated = [Regex]::Replace($content, '(?m)^global AppVersion := ".*"$', $replacement, 1)
+          if ($updated -eq $content) { throw "Could not find AppVersion line in $scriptPath" }
+          Set-Content -Path $scriptPath -Value $updated -Encoding UTF8
+
       - name: Setup AutoHotkey v2 Compiler
         shell: pwsh
         env:
@@ -44,8 +68,29 @@ jobs:
           if (!(Test-Path wsl-path-converter.exe)) { throw "Compilation failed" }
           Get-Item wsl-path-converter.exe
 
+      - name: Setup Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (!(Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+          }
+          if (!(Test-Path $iscc)) { throw "ISCC.exe not found after install" }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "/DMyAppVersion=${{ steps.meta.outputs.version }}" "installer\wsl-path-converter.iss"
+          if (!(Test-Path wsl-path-converter-setup.exe)) { throw "Installer build failed" }
+          Get-Item wsl-path-converter-setup.exe
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: wsl-path-converter.exe
+          files: |
+            wsl-path-converter.exe
+            wsl-path-converter-setup.exe
+          draft: ${{ steps.meta.outputs.is_preview == 'true' }}
+          prerelease: ${{ steps.meta.outputs.is_preview == 'true' }}
           generate_release_notes: true
