@@ -20,3 +20,39 @@ AutoHotkey v2 script that converts clipboard paths between Windows and WSL forma
 ```
 git tag v0.X.0 && git push origin v0.X.0
 ```
+
+When publishing a release, write detailed release notes (not a one-liner). Include:
+
+- Summary of the release purpose
+- User-facing changes (features/behavior/UI)
+- Fixes (bug/perf/stability)
+- Breaking changes (if none, explicitly write "None")
+- Upgrade/install notes (if setup/update flow changed)
+- Verification evidence (CI run link, key test result)
+- Known issues and follow-ups
+
+Use this structure in the GitHub Release body:
+
+```
+## Summary
+- ...
+
+## User-facing Changes
+- ...
+
+## Fixes
+- ...
+
+## Breaking Changes
+- None
+
+## Upgrade Notes
+- ...
+
+## Verification
+- CI: ...
+- Tests: ...
+
+## Known Issues
+- ...
+```
