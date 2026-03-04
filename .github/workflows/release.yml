@@ -33,7 +33,8 @@ jobs:
           $scriptPath = "wsl-path-converter.ahk"
           $content = Get-Content -Path $scriptPath -Raw
           $replacement = 'global AppVersion := "${{ steps.meta.outputs.version }}"'
-          $updated = [Regex]::Replace($content, '(?m)^global AppVersion := ".*"$', $replacement, 1)
+          # Match both LF and CRLF line endings on GitHub runners.
+          $updated = [Regex]::Replace($content, '(?m)^global AppVersion := ".*"\r?$', $replacement, 1, 0)
           if ($updated -eq $content) { throw "Could not find AppVersion line in $scriptPath" }
           Set-Content -Path $scriptPath -Value $updated -Encoding UTF8
 
