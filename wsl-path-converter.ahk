@@ -9,7 +9,7 @@ Persistent
 ;  Ctrl+Shift+V : Convert and paste clipboard path (WSL <-> Windows)
 ; ============================================================
 
-global AppVersion := "0.5.2"
+global AppVersion := "0.5.3"
 
 trayIconPath := A_Temp "\wsl-path-converter-tray.ico"
 FileInstall("icon.ico", trayIconPath, 1)
@@ -54,6 +54,7 @@ RegisterStartup() {
     shortcut.TargetPath := A_ScriptFullPath
     shortcut.WorkingDirectory := A_ScriptDir
     shortcut.Description := "WSL Path Converter"
+    shortcut.IconLocation := A_ScriptFullPath ",0"
     shortcut.Save()
 }
 
