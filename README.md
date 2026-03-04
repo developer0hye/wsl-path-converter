@@ -8,7 +8,7 @@ Copy path as usual (`Ctrl+C` or Explorer `Ctrl+Shift+C`), then convert on paste 
 
 ## Install
 
-[Download](https://github.com/developer0hye/wsl-path-converter/releases/latest/download/wsl-path-converter.exe) -> Run -> Done.
+[Download](https://github.com/developer0hye/wsl-path-converter/releases/latest/download/wsl-path-converter-setup.exe) -> Run installer -> Done.
 
 ## Conversions
 
