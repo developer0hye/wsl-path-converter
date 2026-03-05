@@ -31,5 +31,3 @@ The app runs in the system tray and auto-detects your WSL distro.
 It starts with Windows automatically. To disable, right-click the tray icon and uncheck **Start with Windows**.
 
 To change the conversion shortcut, right-click the tray icon -> **Conversion hotkey** -> **Set conversion hotkey...**, press the key combination directly, then save (default: `Ctrl+Shift+V`).
-
-If `Ctrl+Shift+V` is already used by another app, the converter automatically falls back to another key on startup.

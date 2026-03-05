@@ -63,7 +63,11 @@ tray.Add()
 tray.Add("Exit", (*) => ExitApp())
 
 ; --- Register conversion hotkey ---
-if (!RegisterStartupConvertHotkey()) {
+startupOk := ApplyConvertHotkey(ConvertHotkey, false)
+if (!startupOk && StrLower(NormalizeHotkey(ConvertHotkey)) != StrLower(NormalizeHotkey(DefaultConvertHotkey)))
+    startupOk := ApplyConvertHotkey(DefaultConvertHotkey, false)
+
+if (!startupOk) {
     details := LastHotkeyError != "" ? "`n`nDetails: " LastHotkeyError : ""
     MsgBox(
         "Could not register conversion hotkey.`n`nIt may be used by another app."
@@ -173,30 +177,6 @@ SaveConvertHotkey(hotkey) {
     } catch {
         return false
     }
-}
-
-RegisterStartupConvertHotkey() {
-    global ConvertHotkey
-
-    requested := NormalizeHotkey(ConvertHotkey)
-    candidates := [requested, "^+v", "^!v", "!+v", "F8"]
-    seen := Map()
-
-    for _, item in candidates {
-        candidate := NormalizeHotkey(item)
-        if (candidate = "")
-            continue
-
-        key := StrLower(candidate)
-        if (seen.Has(key))
-            continue
-        seen[key] := true
-
-        persist := (key != StrLower(requested))
-        if (ApplyConvertHotkey(candidate, persist, false))
-            return true
-    }
-    return false
 }
 
 ApplyConvertHotkey(hotkey, persist := true, notify := false) {
