@@ -284,7 +284,7 @@ SetDefaultHotkeyEnabled(enabled, &errorMessage := "") {
 }
 
 SetConvertHotkeyPrompt(*) {
-    global ConvertHotkey, HotkeyDialogHwnd
+    global ConvertHotkey, RegisteredConvertHotkey, HotkeyDialogHwnd
 
     if (HotkeyDialogHwnd && WinExist("ahk_id " HotkeyDialogHwnd)) {
         WinActivate("ahk_id " HotkeyDialogHwnd)
@@ -292,33 +292,58 @@ SetConvertHotkeyPrompt(*) {
     }
 
     state := {accepted: false, value: ""}
-    dlg := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "WSL Path Converter")
-    dlg.AddText("xm w320", "Press the key combination, then click Save.")
-    hotkeyInput := dlg.AddHotkey("xm w320", ConvertHotkey)
-    btnSave := dlg.AddButton("xm w100 Default", "Save")
-    btnCancel := dlg.AddButton("x+8 w100", "Cancel")
-    btnSave.OnEvent("Click", (*) => (state.accepted := true, state.value := hotkeyInput.Value, dlg.Destroy()))
-    btnCancel.OnEvent("Click", (*) => dlg.Destroy())
-    dlg.OnEvent("Escape", (*) => dlg.Destroy())
-    dlg.OnEvent("Close", HotkeyDialogClosed)
+    suspendedSpec := ""
+    suspendedDefault := false
+    applyAttempted := false
 
-    dlg.Show("AutoSize Center")
-    HotkeyDialogHwnd := dlg.Hwnd
-    WinWaitClose("ahk_id " dlg.Hwnd)
-    HotkeyDialogHwnd := 0
+    if (RegisteredConvertHotkey != "") {
+        try {
+            Hotkey(RegisteredConvertHotkey, "Off")
+            suspendedSpec := RegisteredConvertHotkey
+        }
+    } else {
+        if (SetDefaultHotkeyEnabled(false, &dummyErr))
+            suspendedDefault := true
+    }
 
-    if (!state.accepted)
-        return
+    try {
+        dlg := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "WSL Path Converter")
+        dlg.AddText("xm w320", "Press the key combination, then click Save.")
+        hotkeyInput := dlg.AddHotkey("xm w320", ConvertHotkey)
+        btnSave := dlg.AddButton("xm w100 Default", "Save")
+        btnCancel := dlg.AddButton("x+8 w100", "Cancel")
+        btnSave.OnEvent("Click", (*) => (state.accepted := true, state.value := hotkeyInput.Value, dlg.Destroy()))
+        btnCancel.OnEvent("Click", (*) => dlg.Destroy())
+        dlg.OnEvent("Escape", (*) => dlg.Destroy())
+        dlg.OnEvent("Close", HotkeyDialogClosed)
 
-    candidate := NormalizeHotkey(state.value)
-    if (candidate = "")
-        return
+        dlg.Show("AutoSize Center")
+        HotkeyDialogHwnd := dlg.Hwnd
+        WinWaitClose("ahk_id " dlg.Hwnd)
+        HotkeyDialogHwnd := 0
 
-    if (!ApplyConvertHotkey(candidate, true, true)) {
-        ; Keep the user's selected key as preference even if registration fails right now.
-        ConvertHotkey := candidate
-        SaveConvertHotkey(candidate)
-        UpdateHotkeyTrayLabel()
+        if (!state.accepted)
+            return
+
+        candidate := NormalizeHotkey(state.value)
+        if (candidate = "")
+            return
+
+        applyAttempted := true
+        if (!ApplyConvertHotkey(candidate, true, true)) {
+            ; Keep the user's selected key as preference even if registration fails right now.
+            ConvertHotkey := candidate
+            SaveConvertHotkey(candidate)
+            UpdateHotkeyTrayLabel()
+        }
+    } finally {
+        if (!applyAttempted) {
+            if (suspendedSpec != "") {
+                try Hotkey(suspendedSpec, HandleConvertHotkey, "On")
+            } else if (suspendedDefault) {
+                SetDefaultHotkeyEnabled(true, &dummyErr2)
+            }
+        }
     }
 }
 
