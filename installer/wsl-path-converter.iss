@@ -48,3 +48,4 @@ Filename: "{app}\{#MyAppExeName}"; Description: "Launch WSL Path Converter"; Fla
 
 [UninstallDelete]
 Type: files; Name: "{userstartup}\WSL Path Converter.lnk"
+Type: filesandordirs; Name: "{userappdata}\WSL Path Converter"
