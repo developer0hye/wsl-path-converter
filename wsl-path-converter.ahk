@@ -192,14 +192,12 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
     ; Default hotkey path: keep static/hook-style registration like v0.6.0.
     if (isDefaultCandidate) {
         if (prevRegistered != "")
-            try Hotkey("$" prevRegistered, "Off")
+            try Hotkey(prevRegistered, "Off")
 
-        try {
-            Hotkey("$" defaultKey, "On")
-        } catch as err {
-            LastHotkeyError := err.Message
+        if (!SetDefaultHotkeyEnabled(true, &errMsg)) {
+            LastHotkeyError := errMsg
             if (prevRegistered != "")
-                try Hotkey("$" prevRegistered, HandleConvertHotkey, "On")
+                try Hotkey(prevRegistered, HandleConvertHotkey, "On")
             ConvertHotkey := prevHotkey
             RegisteredConvertHotkey := prevRegistered
             return false
@@ -220,19 +218,18 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
 
     ; Custom hotkey path: disable default static hook and register dynamic one.
     if (prevRegistered != "") {
-        try Hotkey("$" prevRegistered, "Off")
+        try Hotkey(prevRegistered, "Off")
     } else {
-        try Hotkey("$" defaultKey, "Off")
+        SetDefaultHotkeyEnabled(false, &dummyErr)
     }
 
-    try {
-        Hotkey("$" candidate, HandleConvertHotkey, "On")
-    } catch as err {
-        LastHotkeyError := err.Message
+    registeredSpec := RegisterDynamicHotkey(candidate, &errMsg)
+    if (registeredSpec = "") {
+        LastHotkeyError := errMsg
         if (prevRegistered != "") {
-            try Hotkey("$" prevRegistered, HandleConvertHotkey, "On")
+            try Hotkey(prevRegistered, HandleConvertHotkey, "On")
         } else {
-            try Hotkey("$" defaultKey, "On")
+            SetDefaultHotkeyEnabled(true, &dummyErr2)
         }
         ConvertHotkey := prevHotkey
         RegisteredConvertHotkey := prevRegistered
@@ -240,7 +237,7 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
     }
 
     ConvertHotkey := candidate
-    RegisteredConvertHotkey := candidate
+    RegisteredConvertHotkey := registeredSpec
     LastHotkeyError := ""
     UpdateHotkeyTrayLabel()
 
@@ -252,6 +249,37 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
         SetTimer(() => ToolTip(), -1500)
     }
     return true
+}
+
+RegisterDynamicHotkey(candidate, &errorMessage := "") {
+    specs := ["$" candidate, candidate]
+    for _, spec in specs {
+        try {
+            Hotkey(spec, HandleConvertHotkey, "On")
+            errorMessage := ""
+            return spec
+        } catch as err {
+            errorMessage := err.Message
+        }
+    }
+    return ""
+}
+
+SetDefaultHotkeyEnabled(enabled, &errorMessage := "") {
+    global DefaultConvertHotkey
+    key := NormalizeHotkey(DefaultConvertHotkey)
+    action := enabled ? "On" : "Off"
+
+    for _, spec in ["$" key, key] {
+        try {
+            Hotkey(spec, action)
+            errorMessage := ""
+            return true
+        } catch as err {
+            errorMessage := err.Message
+        }
+    }
+    return false
 }
 
 SetConvertHotkeyPrompt(*) {
