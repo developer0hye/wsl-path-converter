@@ -9,7 +9,7 @@ Persistent
 ;  Ctrl+Shift+V : Convert and paste clipboard path (WSL <-> Windows)
 ; ============================================================
 
-global AppVersion := "0.5.3"
+global AppVersion := "0.6.1"
 global RepoOwner := "developer0hye"
 global RepoName := "wsl-path-converter"
 
@@ -24,6 +24,14 @@ global DefaultDistro := DetectDefaultDistro()
 ; --- Startup shortcut path ---
 global StartupLink := A_Startup "\WSL Path Converter.lnk"
 
+; --- User settings ---
+global ConfigDir := A_AppData "\WSL Path Converter"
+global ConfigPath := ConfigDir "\settings.ini"
+global DefaultConvertHotkey := "^+v"
+global ConvertHotkey := LoadConvertHotkey()
+global RegisteredConvertHotkey := ""
+global HotkeyInfoLabel := "Hotkey: " FormatHotkeyForDisplay(ConvertHotkey)
+
 ; --- Tray menu ---
 tray := A_TrayMenu
 tray.Delete()
@@ -32,6 +40,13 @@ tray.Disable("WSL Path Converter v" AppVersion)
 tray.Add()
 tray.Add("Distro: " DefaultDistro, (*) => "")
 tray.Disable("Distro: " DefaultDistro)
+tray.Add(HotkeyInfoLabel, (*) => "")
+tray.Disable(HotkeyInfoLabel)
+tray.Add()
+hotkeyMenu := Menu()
+hotkeyMenu.Add("Set conversion hotkey...", SetConvertHotkeyPrompt)
+hotkeyMenu.Add("Reset to Ctrl+Shift+V", ResetConvertHotkey)
+tray.Add("Conversion hotkey", hotkeyMenu)
 tray.Add()
 tray.Add("Check for updates", CheckForUpdates)
 tray.Add()
@@ -46,8 +61,13 @@ tray.Disable("Contact: developer.0hye@gmail.com")
 tray.Add()
 tray.Add("Exit", (*) => ExitApp())
 
+; --- Register conversion hotkey ---
+if (!ApplyConvertHotkey(ConvertHotkey, false) && !ApplyConvertHotkey(DefaultConvertHotkey, true)) {
+    MsgBox("Could not register conversion hotkey.", "WSL Path Converter", "Iconx")
+}
+
 ; --- Startup notification ---
-TrayTip("Copy path as usual`nCtrl+Shift+V convert/paste`nDistro: " DefaultDistro, "WSL Path Converter", 1)
+TrayTip("Copy path as usual`n" FormatHotkeyForDisplay(ConvertHotkey) " convert/paste`nDistro: " DefaultDistro, "WSL Path Converter", 1)
 SetTimer(() => TrayTip(), -3000)
 
 ; ============================================================
@@ -76,22 +96,29 @@ ToggleStartup(*) {
 }
 
 ; ============================================================
-;  Ctrl+Shift+V  ->  Convert and paste path
+;  Hotkey callback -> Convert and paste path
 ; ============================================================
-$^+v:: {
-    ; Non-text clipboard (image/file) -> passthrough original Ctrl+Shift+V
+HandleConvertHotkey(*) {
+    ; Non-text clipboard (image/file):
+    ; keep native Ctrl+Shift+V behavior only when using the default hotkey.
     if (A_Clipboard = "" && DllCall("IsClipboardFormatAvailable", "UInt", 1) = 0) {
-        Send("^+v")
+        SendOriginalShortcutIfNeeded()
         return
     }
 
     rawText := A_Clipboard
     converted := ConvertClipboardText(rawText)
     if (converted = rawText) {
-        Send("^+v")
+        SendOriginalShortcutIfNeeded()
         return
     }
     PasteConverted(converted)
+}
+
+SendOriginalShortcutIfNeeded() {
+    global ConvertHotkey, DefaultConvertHotkey
+    if (StrLower(NormalizeHotkey(ConvertHotkey)) = StrLower(NormalizeHotkey(DefaultConvertHotkey)))
+        Send("^+v")
 }
 
 ; ============================================================
@@ -110,6 +137,178 @@ PasteConverted(text) {
     Send("^v")
     Sleep(300)
     A_Clipboard := prevClip
+}
+
+; ============================================================
+;  User settings: conversion hotkey
+; ============================================================
+LoadConvertHotkey() {
+    global ConfigPath, DefaultConvertHotkey
+    try {
+        value := IniRead(ConfigPath, "Hotkey", "Convert", DefaultConvertHotkey)
+    } catch {
+        value := DefaultConvertHotkey
+    }
+
+    value := NormalizeHotkey(value)
+    if (value = "")
+        return DefaultConvertHotkey
+    return value
+}
+
+SaveConvertHotkey(hotkey) {
+    global ConfigDir, ConfigPath
+    try {
+        if (!DirExist(ConfigDir))
+            DirCreate(ConfigDir)
+        IniWrite(hotkey, ConfigPath, "Hotkey", "Convert")
+        return true
+    } catch {
+        return false
+    }
+}
+
+ApplyConvertHotkey(hotkey, persist := true, notify := false) {
+    global ConvertHotkey, RegisteredConvertHotkey
+
+    candidate := NormalizeHotkey(hotkey)
+    if (candidate = "")
+        return false
+
+    prevRegistered := RegisteredConvertHotkey
+    prevHotkey := ConvertHotkey
+
+    if (prevRegistered != "") {
+        try Hotkey("$" prevRegistered, "Off")
+    }
+
+    try {
+        Hotkey("$" candidate, HandleConvertHotkey, "On")
+    } catch {
+        if (prevRegistered != "") {
+            try Hotkey("$" prevRegistered, HandleConvertHotkey, "On")
+        }
+        ConvertHotkey := prevHotkey
+        RegisteredConvertHotkey := prevRegistered
+        return false
+    }
+
+    ConvertHotkey := candidate
+    RegisteredConvertHotkey := candidate
+    UpdateHotkeyTrayLabel()
+
+    if (persist)
+        SaveConvertHotkey(candidate)
+
+    if (notify) {
+        ToolTip("Conversion hotkey: " FormatHotkeyForDisplay(candidate))
+        SetTimer(() => ToolTip(), -1500)
+    }
+    return true
+}
+
+SetConvertHotkeyPrompt(*) {
+    global ConvertHotkey
+
+    ib := InputBox(
+        "Enter conversion hotkey (AutoHotkey format).`nExamples: ^+v, ^!v, !v, F8",
+        "WSL Path Converter",
+        "w430 h170",
+        ConvertHotkey
+    )
+    if (ib.Result != "OK")
+        return
+
+    candidate := NormalizeHotkey(ib.Value)
+    if (candidate = "") {
+        MsgBox("Hotkey cannot be empty.", "WSL Path Converter", "Iconx")
+        return
+    }
+
+    if (!ApplyConvertHotkey(candidate, true, true)) {
+        MsgBox(
+            "Could not register that hotkey.`n`nTry another key (for example: ^+v, ^!v, !v, F8).",
+            "WSL Path Converter",
+            "Iconx"
+        )
+    }
+}
+
+ResetConvertHotkey(*) {
+    global DefaultConvertHotkey
+    if (!ApplyConvertHotkey(DefaultConvertHotkey, true, true)) {
+        MsgBox("Could not reset hotkey to Ctrl+Shift+V.", "WSL Path Converter", "Iconx")
+    }
+}
+
+UpdateHotkeyTrayLabel() {
+    global HotkeyInfoLabel, ConvertHotkey
+
+    tray := A_TrayMenu
+    newLabel := "Hotkey: " FormatHotkeyForDisplay(ConvertHotkey)
+
+    if (HotkeyInfoLabel = "") {
+        tray.Add(newLabel, (*) => "")
+        tray.Disable(newLabel)
+        HotkeyInfoLabel := newLabel
+        return
+    }
+
+    if (HotkeyInfoLabel = newLabel)
+        return
+
+    try {
+        tray.Rename(HotkeyInfoLabel, newLabel)
+    } catch {
+        try tray.Delete(HotkeyInfoLabel)
+        tray.Add(newLabel, (*) => "")
+    }
+    tray.Disable(newLabel)
+    HotkeyInfoLabel := newLabel
+}
+
+NormalizeHotkey(hotkey) {
+    value := Trim(hotkey, " `t`r`n")
+    while (value != "" && (SubStr(value, 1, 1) = "$" || SubStr(value, 1, 1) = "~" || SubStr(value, 1, 1) = "*"))
+        value := SubStr(value, 2)
+    return value
+}
+
+FormatHotkeyForDisplay(hotkey) {
+    value := StrReplace(NormalizeHotkey(hotkey), "<")
+    value := StrReplace(value, ">")
+
+    mods := ""
+    while (value != "") {
+        prefix := SubStr(value, 1, 1)
+        if (prefix = "^") {
+            mods .= "Ctrl+"
+            value := SubStr(value, 2)
+            continue
+        }
+        if (prefix = "!") {
+            mods .= "Alt+"
+            value := SubStr(value, 2)
+            continue
+        }
+        if (prefix = "+") {
+            mods .= "Shift+"
+            value := SubStr(value, 2)
+            continue
+        }
+        if (prefix = "#") {
+            mods .= "Win+"
+            value := SubStr(value, 2)
+            continue
+        }
+        break
+    }
+
+    if (value = "")
+        return mods != "" ? RTrim(mods, "+") : NormalizeHotkey(hotkey)
+    if (StrLen(value) = 1)
+        value := StrUpper(value)
+    return mods value
 }
 
 ; ============================================================

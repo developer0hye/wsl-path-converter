@@ -29,3 +29,5 @@ If the clipboard text is not a supported path, normal `Ctrl+Shift+V` behavior is
 The app runs in the system tray and auto-detects your WSL distro.
 
 It starts with Windows automatically. To disable, right-click the tray icon and uncheck **Start with Windows**.
+
+To change the conversion shortcut, right-click the tray icon -> **Conversion hotkey** -> **Set conversion hotkey...** (default: `Ctrl+Shift+V`).
