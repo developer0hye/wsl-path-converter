@@ -31,6 +31,7 @@ global DefaultConvertHotkey := "^+v"
 global ConvertHotkey := LoadConvertHotkey()
 global RegisteredConvertHotkey := ""
 global HotkeyInfoLabel := "Hotkey: " FormatHotkeyForDisplay(ConvertHotkey)
+global LastHotkeyError := ""
 
 ; --- Tray menu ---
 tray := A_TrayMenu
@@ -62,8 +63,14 @@ tray.Add()
 tray.Add("Exit", (*) => ExitApp())
 
 ; --- Register conversion hotkey ---
-if (!ApplyConvertHotkey(ConvertHotkey, false) && !ApplyConvertHotkey(DefaultConvertHotkey, true)) {
-    MsgBox("Could not register conversion hotkey.", "WSL Path Converter", "Iconx")
+if (!RegisterStartupConvertHotkey()) {
+    details := LastHotkeyError != "" ? "`n`nDetails: " LastHotkeyError : ""
+    MsgBox(
+        "Could not register conversion hotkey.`n`nIt may be used by another app."
+        details,
+        "WSL Path Converter",
+        "Iconx"
+    )
 }
 
 ; --- Startup notification ---
@@ -168,12 +175,38 @@ SaveConvertHotkey(hotkey) {
     }
 }
 
+RegisterStartupConvertHotkey() {
+    global ConvertHotkey
+
+    requested := NormalizeHotkey(ConvertHotkey)
+    candidates := [requested, "^+v", "^!v", "!+v", "F8"]
+    seen := Map()
+
+    for _, item in candidates {
+        candidate := NormalizeHotkey(item)
+        if (candidate = "")
+            continue
+
+        key := StrLower(candidate)
+        if (seen.Has(key))
+            continue
+        seen[key] := true
+
+        persist := (key != StrLower(requested))
+        if (ApplyConvertHotkey(candidate, persist, false))
+            return true
+    }
+    return false
+}
+
 ApplyConvertHotkey(hotkey, persist := true, notify := false) {
-    global ConvertHotkey, RegisteredConvertHotkey
+    global ConvertHotkey, RegisteredConvertHotkey, LastHotkeyError
 
     candidate := NormalizeHotkey(hotkey)
-    if (candidate = "")
+    if (candidate = "") {
+        LastHotkeyError := "Hotkey is empty."
         return false
+    }
 
     prevRegistered := RegisteredConvertHotkey
     prevHotkey := ConvertHotkey
@@ -184,7 +217,8 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
 
     try {
         Hotkey(candidate, HandleConvertHotkey, "On")
-    } catch {
+    } catch as err {
+        LastHotkeyError := err.Message
         if (prevRegistered != "") {
             try Hotkey(prevRegistered, HandleConvertHotkey, "On")
         }
@@ -195,6 +229,7 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
 
     ConvertHotkey := candidate
     RegisteredConvertHotkey := candidate
+    LastHotkeyError := ""
     UpdateHotkeyTrayLabel()
 
     if (persist)
