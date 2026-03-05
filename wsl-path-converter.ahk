@@ -175,7 +175,6 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
     if (candidate = "")
         return false
 
-    callback := Func("HandleConvertHotkey")
     prevRegistered := RegisteredConvertHotkey
     prevHotkey := ConvertHotkey
 
@@ -184,10 +183,10 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
     }
 
     try {
-        Hotkey(candidate, callback, "On")
+        Hotkey(candidate, HandleConvertHotkey, "On")
     } catch {
         if (prevRegistered != "") {
-            try Hotkey(prevRegistered, callback, "On")
+            try Hotkey(prevRegistered, HandleConvertHotkey, "On")
         }
         ConvertHotkey := prevHotkey
         RegisteredConvertHotkey := prevRegistered
