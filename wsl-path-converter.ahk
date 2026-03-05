@@ -9,7 +9,7 @@ Persistent
 ;  Ctrl+Shift+V : Convert and paste clipboard path (WSL <-> Windows)
 ; ============================================================
 
-global AppVersion := "0.6.1"
+global AppVersion := "0.6.2"
 global RepoOwner := "developer0hye"
 global RepoName := "wsl-path-converter"
 
@@ -175,18 +175,19 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
     if (candidate = "")
         return false
 
+    callback := Func("HandleConvertHotkey")
     prevRegistered := RegisteredConvertHotkey
     prevHotkey := ConvertHotkey
 
     if (prevRegistered != "") {
-        try Hotkey("$" prevRegistered, "Off")
+        try Hotkey(prevRegistered, "Off")
     }
 
     try {
-        Hotkey("$" candidate, HandleConvertHotkey, "On")
+        Hotkey(candidate, callback, "On")
     } catch {
         if (prevRegistered != "") {
-            try Hotkey("$" prevRegistered, HandleConvertHotkey, "On")
+            try Hotkey(prevRegistered, callback, "On")
         }
         ConvertHotkey := prevHotkey
         RegisteredConvertHotkey := prevRegistered
@@ -210,16 +211,23 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
 SetConvertHotkeyPrompt(*) {
     global ConvertHotkey
 
-    ib := InputBox(
-        "Enter conversion hotkey (AutoHotkey format).`nExamples: ^+v, ^!v, !v, F8",
-        "WSL Path Converter",
-        "w430 h170",
-        ConvertHotkey
-    )
-    if (ib.Result != "OK")
+    state := {accepted: false, value: ""}
+    dlg := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "WSL Path Converter")
+    dlg.AddText("xm w320", "Press the key combination, then click Save.")
+    hotkeyInput := dlg.AddHotkey("xm w320", ConvertHotkey)
+    btnSave := dlg.AddButton("xm w100 Default", "Save")
+    btnCancel := dlg.AddButton("x+8 w100", "Cancel")
+    btnSave.OnEvent("Click", (*) => (state.accepted := true, state.value := hotkeyInput.Value, dlg.Destroy()))
+    btnCancel.OnEvent("Click", (*) => dlg.Destroy())
+    dlg.OnEvent("Escape", (*) => dlg.Destroy())
+
+    dlg.Show("AutoSize Center")
+    WinWaitClose("ahk_id " dlg.Hwnd)
+
+    if (!state.accepted)
         return
 
-    candidate := NormalizeHotkey(ib.Value)
+    candidate := NormalizeHotkey(state.value)
     if (candidate = "") {
         MsgBox("Hotkey cannot be empty.", "WSL Path Converter", "Iconx")
         return
@@ -227,7 +235,7 @@ SetConvertHotkeyPrompt(*) {
 
     if (!ApplyConvertHotkey(candidate, true, true)) {
         MsgBox(
-            "Could not register that hotkey.`n`nTry another key (for example: ^+v, ^!v, !v, F8).",
+            "Could not register that hotkey.`n`nTry a different key combination.",
             "WSL Path Converter",
             "Iconx"
         )
