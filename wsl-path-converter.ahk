@@ -63,19 +63,7 @@ tray.Add()
 tray.Add("Exit", (*) => ExitApp())
 
 ; --- Register conversion hotkey ---
-startupOk := ApplyConvertHotkey(ConvertHotkey, false)
-if (!startupOk && StrLower(NormalizeHotkey(ConvertHotkey)) != StrLower(NormalizeHotkey(DefaultConvertHotkey)))
-    startupOk := ApplyConvertHotkey(DefaultConvertHotkey, false)
-
-if (!startupOk) {
-    details := LastHotkeyError != "" ? "`n`nDetails: " LastHotkeyError : ""
-    MsgBox(
-        "Could not register conversion hotkey.`n`nIt may be used by another app."
-        details,
-        "WSL Path Converter",
-        "Iconx"
-    )
-}
+ApplyConvertHotkey(ConvertHotkey, false)
 
 ; --- Startup notification ---
 TrayTip("Copy path as usual`n" FormatHotkeyForDisplay(ConvertHotkey) " convert/paste`nDistro: " DefaultDistro, "WSL Path Converter", 1)
@@ -109,26 +97,33 @@ ToggleStartup(*) {
 ; ============================================================
 ;  Hotkey callback -> Convert and paste path
 ; ============================================================
+$^+v:: {
+    HandleConvertHotkey()
+}
+
 HandleConvertHotkey(*) {
+    triggerHotkey := A_ThisHotkey
+
     ; Non-text clipboard (image/file):
     ; keep native Ctrl+Shift+V behavior only when using the default hotkey.
     if (A_Clipboard = "" && DllCall("IsClipboardFormatAvailable", "UInt", 1) = 0) {
-        SendOriginalShortcutIfNeeded()
+        SendOriginalShortcutIfNeeded(triggerHotkey)
         return
     }
 
     rawText := A_Clipboard
     converted := ConvertClipboardText(rawText)
     if (converted = rawText) {
-        SendOriginalShortcutIfNeeded()
+        SendOriginalShortcutIfNeeded(triggerHotkey)
         return
     }
     PasteConverted(converted)
 }
 
-SendOriginalShortcutIfNeeded() {
-    global ConvertHotkey, DefaultConvertHotkey
-    if (StrLower(NormalizeHotkey(ConvertHotkey)) = StrLower(NormalizeHotkey(DefaultConvertHotkey)))
+SendOriginalShortcutIfNeeded(triggerHotkey := "") {
+    global DefaultConvertHotkey
+    effective := NormalizeHotkey(triggerHotkey)
+    if (StrLower(effective) = StrLower(NormalizeHotkey(DefaultConvertHotkey)))
         Send("^+v")
 }
 
@@ -180,7 +175,7 @@ SaveConvertHotkey(hotkey) {
 }
 
 ApplyConvertHotkey(hotkey, persist := true, notify := false) {
-    global ConvertHotkey, RegisteredConvertHotkey, LastHotkeyError
+    global ConvertHotkey, RegisteredConvertHotkey, LastHotkeyError, DefaultConvertHotkey
 
     candidate := NormalizeHotkey(hotkey)
     if (candidate = "") {
@@ -188,19 +183,56 @@ ApplyConvertHotkey(hotkey, persist := true, notify := false) {
         return false
     }
 
+    defaultKey := NormalizeHotkey(DefaultConvertHotkey)
+    isDefaultCandidate := (StrLower(candidate) = StrLower(defaultKey))
+
     prevRegistered := RegisteredConvertHotkey
     prevHotkey := ConvertHotkey
 
+    ; Default hotkey path: keep static/hook-style registration like v0.6.0.
+    if (isDefaultCandidate) {
+        if (prevRegistered != "")
+            try Hotkey("$" prevRegistered, "Off")
+
+        try {
+            Hotkey("$" defaultKey, "On")
+        } catch as err {
+            LastHotkeyError := err.Message
+            if (prevRegistered != "")
+                try Hotkey("$" prevRegistered, HandleConvertHotkey, "On")
+            ConvertHotkey := prevHotkey
+            RegisteredConvertHotkey := prevRegistered
+            return false
+        }
+
+        ConvertHotkey := defaultKey
+        RegisteredConvertHotkey := ""
+        LastHotkeyError := ""
+        UpdateHotkeyTrayLabel()
+        if (persist)
+            SaveConvertHotkey(defaultKey)
+        if (notify) {
+            ToolTip("Conversion hotkey: " FormatHotkeyForDisplay(defaultKey))
+            SetTimer(() => ToolTip(), -1500)
+        }
+        return true
+    }
+
+    ; Custom hotkey path: disable default static hook and register dynamic one.
     if (prevRegistered != "") {
-        try Hotkey(prevRegistered, "Off")
+        try Hotkey("$" prevRegistered, "Off")
+    } else {
+        try Hotkey("$" defaultKey, "Off")
     }
 
     try {
-        Hotkey(candidate, HandleConvertHotkey, "On")
+        Hotkey("$" candidate, HandleConvertHotkey, "On")
     } catch as err {
         LastHotkeyError := err.Message
         if (prevRegistered != "") {
-            try Hotkey(prevRegistered, HandleConvertHotkey, "On")
+            try Hotkey("$" prevRegistered, HandleConvertHotkey, "On")
+        } else {
+            try Hotkey("$" defaultKey, "On")
         }
         ConvertHotkey := prevHotkey
         RegisteredConvertHotkey := prevRegistered
@@ -242,24 +274,23 @@ SetConvertHotkeyPrompt(*) {
         return
 
     candidate := NormalizeHotkey(state.value)
-    if (candidate = "") {
-        MsgBox("Hotkey cannot be empty.", "WSL Path Converter", "Iconx")
+    if (candidate = "")
         return
-    }
 
     if (!ApplyConvertHotkey(candidate, true, true)) {
-        MsgBox(
-            "Could not register that hotkey.`n`nTry a different key combination.",
-            "WSL Path Converter",
-            "Iconx"
-        )
+        ; Keep the user's selected key as preference even if registration fails right now.
+        ConvertHotkey := candidate
+        SaveConvertHotkey(candidate)
+        UpdateHotkeyTrayLabel()
     }
 }
 
 ResetConvertHotkey(*) {
-    global DefaultConvertHotkey
+    global DefaultConvertHotkey, ConvertHotkey
     if (!ApplyConvertHotkey(DefaultConvertHotkey, true, true)) {
-        MsgBox("Could not reset hotkey to Ctrl+Shift+V.", "WSL Path Converter", "Iconx")
+        ConvertHotkey := DefaultConvertHotkey
+        SaveConvertHotkey(DefaultConvertHotkey)
+        UpdateHotkeyTrayLabel()
     }
 }
 
