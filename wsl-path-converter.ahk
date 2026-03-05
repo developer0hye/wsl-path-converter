@@ -32,6 +32,7 @@ global ConvertHotkey := LoadConvertHotkey()
 global RegisteredConvertHotkey := ""
 global HotkeyInfoLabel := "Hotkey: " FormatHotkeyForDisplay(ConvertHotkey)
 global LastHotkeyError := ""
+global HotkeyDialogHwnd := 0
 
 ; --- Tray menu ---
 tray := A_TrayMenu
@@ -283,7 +284,12 @@ SetDefaultHotkeyEnabled(enabled, &errorMessage := "") {
 }
 
 SetConvertHotkeyPrompt(*) {
-    global ConvertHotkey
+    global ConvertHotkey, HotkeyDialogHwnd
+
+    if (HotkeyDialogHwnd && WinExist("ahk_id " HotkeyDialogHwnd)) {
+        WinActivate("ahk_id " HotkeyDialogHwnd)
+        return
+    }
 
     state := {accepted: false, value: ""}
     dlg := Gui("+AlwaysOnTop -MinimizeBox -MaximizeBox", "WSL Path Converter")
@@ -294,9 +300,12 @@ SetConvertHotkeyPrompt(*) {
     btnSave.OnEvent("Click", (*) => (state.accepted := true, state.value := hotkeyInput.Value, dlg.Destroy()))
     btnCancel.OnEvent("Click", (*) => dlg.Destroy())
     dlg.OnEvent("Escape", (*) => dlg.Destroy())
+    dlg.OnEvent("Close", HotkeyDialogClosed)
 
     dlg.Show("AutoSize Center")
+    HotkeyDialogHwnd := dlg.Hwnd
     WinWaitClose("ahk_id " dlg.Hwnd)
+    HotkeyDialogHwnd := 0
 
     if (!state.accepted)
         return
@@ -311,6 +320,11 @@ SetConvertHotkeyPrompt(*) {
         SaveConvertHotkey(candidate)
         UpdateHotkeyTrayLabel()
     }
+}
+
+HotkeyDialogClosed(*) {
+    global HotkeyDialogHwnd
+    HotkeyDialogHwnd := 0
 }
 
 ResetConvertHotkey(*) {
